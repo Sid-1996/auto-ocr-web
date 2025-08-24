@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全自動圖片文字識別工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft JhengHei', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+        
+        header {
+            background: #4e54c8;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .description {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #4e54c8;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f8f9ff;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .upload-area:hover, .upload-area.dragover {
+            background: #eef0ff;
+            border-color: #ff6b6b;
+        }
+        
+        .upload-area i {
+            font-size: 64px;
+            color: #4e54c8;
+            margin-bottom: 20px;
+        }
+        
+        .upload-area h3 {
+            font-size: 24px;
+            color: #4e54c8;
+            margin-bottom: 15px;
+        }
+        
+        .upload-area p {
+            color: #666;
+            margin: 8px 0;
+            font-size: 16px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .upload-btn {
+            background: #4e54c8;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 15px 0;
+            transition: all 0.3s;
+        }
+        
+        .upload-btn:hover {
+            background: #3a3eb3;
+        }
+        
+        .language-selector {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .lang-btn {
+            padding: 8px 15px;
+            border: 2px solid #4e54c8;
+            border-radius: 20px;
+            background: white;
+            color: #4e54c8;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        
+        .lang-btn.active {
+            background: #4e54c8;
+            color: white;
+        }
+        
+        .processing-area {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            text-align: center;
+        }
+        
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #4e54c8;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .progress-text {
+            font-size: 18px;
+            color: #4e54c8;
+            font-weight: 600;
+        }
+        
+        .result-area {
+            display: none;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .result-title {
+            font-size: 20px;
+            color: #333;
+            font-weight: 600;
+            text-align: center;
+        }
+        
+        .text-output {
+            background: #f8f9ff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 16px;
+            line-height: 1.6;
+            color: #333;
+            white-space: pre-wrap;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            background: #4e54c8;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn:hover {
+            background: #3a3eb3;
+            transform: translateY(-2px);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-new {
+            background: #00b894;
+        }
+        
+        .btn-new:hover {
+            background: #009e7d;
+        }
+        
+        .hint {
+            font-size: 14px;
+            color: #666;
+            text-align: center;
+            margin-top: 15px;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            background: #00b894;
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            transform: translateX(100%);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            max-width: 300px;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        
+        .status-bar {
+            width: 100%;
+            height: 6px;
+            background: #f0f0f0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        .status-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #4e54c8, #8f94fb);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .debug-info {
+            font-size: 12px;
+            color: #888;
+            margin-top: 10px;
+            display: block;
+            text-align: left;
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 14px;
+            border-top: 1px solid #eee;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                border-radius: 12px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+            
+            .upload-area {
+                padding: 30px 15px;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+            
+            .notification {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+                text-align: center;
+            }
+            
+            .language-selector {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>全自動圖片文字識別工具</h1>
+            <p class="description">支援拖放、貼上圖片或上傳檔案，自動識別並複製文字內容</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="upload-area" id="uploadArea">
+                <i>📋</i>
+                <h3>多種方式上傳圖片</h3>
+                <p>使用 Ctrl+V 貼上圖片</p>
+                <p>直接拖放圖片到此區域</p>
+                <p>或點擊下方按鈕選擇檔案</p>
+                
+                <input type="file" class="file-input" id="fileInput" accept="image/*">
+                <button class="upload-btn" id="uploadBtn">選擇圖片檔案</button>
+                
+                <div class="language-selector">
+                    <div class="lang-btn active" data-lang="eng">英文</div>
+                    <div class="lang-btn" data-lang="chi_sim">中文</div>
+                </div>
+                
+                <p class="hint">支援格式: JPG, PNG, GIF, BMP</p>
+                <p class="hint">識別完成後文字將自動複製到剪貼簿</p>
+                <div class="debug-info" id="debugInfo">系統準備中...</div>
+            </div>
+            
+            <div class="processing-area" id="processingArea">
+                <div class="spinner"></div>
+                <div class="progress-text" id="progressText">正在處理圖片並提取文字...</div>
+                <div class="status-bar">
+                    <div class="status-progress" id="statusProgress"></div>
+                </div>
+            </div>
+            
+            <div class="result-area" id="resultArea">
+                <h3 class="result-title">已識別並自動複製的文字內容</h3>
+                <div class="text-output" id="textOutput"></div>
+                <div class="action-buttons">
+                    <button class="btn" id="copyBtn">
+                        <span>重新複製文字</span>
+                    </button>
+                    <button class="btn btn-new" id="newImageBtn">
+                        <span>處理新圖片</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>© 全自動圖片文字識別工具 | 使用 Tesseract.js 開源技術</p>
+            <p style="font-size: 12px; color: #999; margin-top: 5px;">本工具基於免費開源技術，中文識別精準度可能不如商業付費服務</p>
+        </footer>
+    </div>
+
+    <div class="notification" id="notification">
+        文字已自動複製到剪貼簿！
+    </div>
+
+    <!-- 使用最新穩定版本的 Tesseract.js -->
+    <script src="https://unpkg.com/tesseract.js@v4.1.1/dist/tesseract.min.js"></script>
+    
+    <script>
+        let worker = null;
+        let selectedLanguage = 'eng';
+        let extractedText = '';
+        let isWorkerReady = false;
+        
+        // DOM 元素
+        const uploadArea = document.getElementById('uploadArea');
+        const processingArea = document.getElementById('processingArea');
+        const resultArea = document.getElementById('resultArea');
+        const textOutput = document.getElementById('textOutput');
+        const newImageBtn = document.getElementById('newImageBtn');
+        const copyBtn = document.getElementById('copyBtn');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const fileInput = document.getElementById('fileInput');
+        const notification = document.getElementById('notification');
+        const progressText = document.getElementById('progressText');
+        const statusProgress = document.getElementById('statusProgress');
+        const langButtons = document.querySelectorAll('.lang-btn');
+        const debugInfo = document.getElementById('debugInfo');
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            log('頁面載入完成，開始初始化...');
+            initializeApp();
+            setupEventListeners();
+        });
+        
+        function log(message) {
+            console.log(message);
+            debugInfo.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${message}</div>`;
+            debugInfo.scrollTop = debugInfo.scrollHeight;
+        }
+        
+        async function initializeApp() {
+            try {
+                log('正在初始化 Tesseract.js...');
+                
+                // 創建 worker
+                worker = await Tesseract.createWorker({
+                    logger: m => {
+                        if (m.status) {
+                            log(`狀態: ${m.status} - ${Math.round(m.progress * 100)}%`);
+                            updateProgress(m);
+                        }
+                    }
+                });
+                
+                log('Worker 創建成功，正在載入語言包...');
+                
+                // 載入英文語言包（最基本且最穩定的）
+                await worker.loadLanguage('eng');
+                await worker.initialize('eng');
+                
+                log('初始化完成！系統準備就緒。');
+                isWorkerReady = true;
+                showNotification('系統初始化完成，可以開始使用！');
+                
+            } catch (error) {
+                log(`初始化失敗: ${error.message}`);
+                showNotification('初始化失敗，某些功能可能無法使用', true);
+                console.error('Initialization error:', error);
+            }
+        }
+        
+        function setupEventListeners() {
+            // 檔案選擇
+            uploadBtn.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFile(e.target.files[0]);
+                }
+            });
+            
+            // 點擊上傳區域
+            uploadArea.addEventListener('click', (e) => {
+                if (!e.target.closest('.lang-btn') && !e.target.closest('.upload-btn')) {
+                    fileInput.click();
+                }
+            });
+            
+            // 拖放
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, highlight, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, unhighlight, false);
+            });
+            
+            uploadArea.addEventListener('drop', handleDrop, false);
+            
+            // 貼上
+            document.addEventListener('paste', handlePaste);
+            
+            // 語言選擇
+            langButtons.forEach(btn => {
+                btn.addEventListener('click', handleLanguageChange);
+            });
+            
+            // 按鈕
+            newImageBtn.addEventListener('click', resetUI);
+            copyBtn.addEventListener('click', () => {
+                if (extractedText) {
+                    copyToClipboard(extractedText);
+                }
+            });
+        }
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        function highlight() {
+            uploadArea.classList.add('dragover');
+        }
+        
+        function unhighlight() {
+            uploadArea.classList.remove('dragover');
+        }
+        
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        }
+        
+        function handlePaste(e) {
+            log('檢測到貼上操作');
+            
+            const clipboardData = e.clipboardData || window.clipboardData;
+            if (!clipboardData) {
+                log('無法存取剪貼簿');
+                return;
+            }
+            
+            // 檢查檔案
+            if (clipboardData.files && clipboardData.files.length > 0) {
+                const file = clipboardData.files[0];
+                log(`從剪貼簿取得檔案: ${file.name}, 類型: ${file.type}`);
+                if (file.type.startsWith('image/')) {
+                    e.preventDefault();
+                    handleFile(file);
+                    return;
+                }
+            }
+            
+            // 檢查 items
+            if (clipboardData.items) {
+                for (let i = 0; i < clipboardData.items.length; i++) {
+                    const item = clipboardData.items[i];
+                    if (item.type.startsWith('image/')) {
+                        log(`從剪貼簿取得圖片項目: ${item.type}`);
+                        const blob = item.getAsFile();
+                        if (blob) {
+                            e.preventDefault();
+                            handleFile(blob);
+                            return;
+                        }
+                    }
+                }
+            }
+            
+            log('剪貼簿中沒有找到圖片');
+            showNotification('請先複製圖片到剪貼簿', true);
+        }
+        
+        async function handleLanguageChange(e) {
+            const newLang = e.target.getAttribute('data-lang');
+            
+            langButtons.forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            
+            selectedLanguage = newLang;
+            log(`切換語言到: ${selectedLanguage}`);
+            
+            // 如果切換到中文，需要重新載入語言包
+            if (newLang.includes('chi') && worker) {
+                try {
+                    showNotification(`正在載入 ${e.target.textContent} 語言包...`);
+                    log(`開始載入 ${newLang} 語言包...`);
+                    
+                    await worker.loadLanguage(newLang);
+                    await worker.initialize(newLang);
+                    
+                    log(`${newLang} 語言包載入成功`);
+                    showNotification(`${e.target.textContent} 語言包載入完成！`);
+                } catch (error) {
+                    log(`語言包載入失敗: ${error.message}`);
+                    showNotification(`${e.target.textContent} 語言包載入失敗`, true);
+                }
+            } else {
+                showNotification(`已切換到 ${e.target.textContent} 模式`);
+            }
+        }
+        
+        function handleFile(file) {
+            if (!file.type.startsWith('image/')) {
+                showNotification('請選擇圖片檔案！', true);
+                return;
+            }
+            
+            log(`開始處理檔案: ${file.name} (${(file.size/1024).toFixed(1)}KB)`);
+            
+            // 切換到處理界面
+            uploadArea.style.display = 'none';
+            processingArea.style.display = 'flex';
+            resultArea.style.display = 'none';
+            
+            processImage(file);
+        }
+        
+        async function processImage(file) {
+            try {
+                statusProgress.style.width = '0%';
+                
+                // 如果 worker 還沒準備好，先創建一個臨時的
+                if (!isWorkerReady || !worker) {
+                    log('Worker 還沒準備好，創建臨時 worker...');
+                    progressText.textContent = '正在準備識別引擎...';
+                    
+                    worker = await Tesseract.createWorker({
+                        logger: m => updateProgress(m)
+                    });
+                    
+                    // 載入對應語言包
+                    await worker.loadLanguage(selectedLanguage);
+                    await worker.initialize(selectedLanguage);
+                }
+                
+                // 確保語言包已載入
+                if (selectedLanguage !== 'eng') {
+                    log(`確認語言包載入狀態: ${selectedLanguage}`);
+                    progressText.textContent = `確認 ${selectedLanguage} 語言包...`;
+                    
+                    try {
+                        // 重新初始化以確保語言包正確載入
+                        await worker.reinitialize(selectedLanguage);
+                        log(`語言包 ${selectedLanguage} 確認完成`);
+                    } catch (langError) {
+                        log(`語言包問題，嘗試重新載入: ${langError.message}`);
+                        await worker.loadLanguage(selectedLanguage);
+                        await worker.initialize(selectedLanguage);
+                    }
+                }
+                
+                log(`開始識別文字，使用語言: ${selectedLanguage}`);
+                progressText.textContent = '正在識別圖片中的文字...';
+                
+                // 針對中文進行特殊處理
+                const ocrOptions = {};
+                if (selectedLanguage.includes('chi')) {
+                    // 中文識別的特殊設定
+                    ocrOptions.tessedit_char_whitelist = '';
+                    ocrOptions.tessedit_pageseg_mode = 1; // 自動頁面分割
+                    log('使用中文識別優化設定');
+                }
+                
+                // 進行 OCR 識別
+                const result = await worker.recognize(file, selectedLanguage, ocrOptions);
+                
+                log(`識別完成，信心度: ${result.data.confidence.toFixed(2)}%`);
+                
+                extractedText = result.data.text ? result.data.text.trim() : '';
+                
+                if (extractedText) {
+                    log(`成功識別到 ${extractedText.length} 個字元`);
+                } else {
+                    let errorMsg = '無法從圖片中識別到文字內容。\n\n可能的原因：\n• 圖片中沒有文字\n• 文字太小或模糊';
+                    
+                    if (selectedLanguage.includes('chi')) {
+                        errorMsg += '\n• 中文字體複雜或手寫字難以識別\n• 圖片解析度不足\n• Tesseract.js 對中文識別精準度有限\n\n建議：\n• 使用高解析度印刷體圖片\n• 確保圖片清晰且對比度高\n• 避免傾斜或變形的文字\n• 考慮使用商業 OCR 服務以獲得更高精準度';
+                    } else {
+                        errorMsg += '\n• 語言設定不正確\n\n建議：\n• 使用更清晰的圖片\n• 嘗試不同的語言設定\n• 確保圖片對比度足夠';
+                    }
+                    
+                    extractedText = errorMsg;
+                    log('未識別到文字內容');
+                }
+                
+                textOutput.textContent = extractedText;
+                
+                // 複製到剪貼簿
+                await copyToClipboard(extractedText);
+                
+                // 顯示結果
+                processingArea.style.display = 'none';
+                resultArea.style.display = 'flex';
+                
+            } catch (error) {
+                log(`處理失敗: ${error.message}`);
+                console.error('OCR error:', error);
+                
+                let errorMsg = `處理失敗：${error.message}\n\n`;
+                
+                if (selectedLanguage.includes('chi')) {
+                    errorMsg += '中文識別常見問題：\n• Tesseract.js 對中文識別精準度有技術限制\n• 語言包載入失敗\n• 網路連線問題\n• 圖片格式不支援\n\n請嘗試：\n• 使用更清晰的高解析度印刷體圖片\n• 重新選擇中文語言\n• 確保網路連線穩定\n• 重新整理頁面\n• 如需高精準度，建議使用商業 OCR 服務';
+                } else {
+                    errorMsg += '請嘗試：\n• 重新整理頁面\n• 使用其他圖片\n• 檢查網路連線';
+                }
+                
+                extractedText = errorMsg;
+                textOutput.textContent = extractedText;
+                
+                processingArea.style.display = 'none';
+                resultArea.style.display = 'flex';
+                
+                showNotification('處理失敗，請重試', true);
+            }
+        }
+        
+        function updateProgress(message) {
+            if (message.status === 'recognizing text') {
+                progressText.textContent = `正在識別文字... ${Math.round(message.progress * 100)}%`;
+                statusProgress.style.width = `${message.progress * 100}%`;
+            } else if (message.status === 'loading tesseract core') {
+                progressText.textContent = '載入識別核心...';
+                statusProgress.style.width = '20%';
+            } else if (message.status === 'initializing tesseract') {
+                progressText.textContent = '初始化識別引擎...';
+                statusProgress.style.width = '40%';
+            } else if (message.status === 'loading language traineddata') {
+                progressText.textContent = '載入語言資料...';
+                statusProgress.style.width = '60%';
+            } else if (message.status === 'initializing api') {
+                progressText.textContent = '初始化 API...';
+                statusProgress.style.width = '80%';
+            }
+        }
+        
+        async function copyToClipboard(text) {
+            try {
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(text);
+                    showNotification('文字已複製到剪貼簿！');
+                } else {
+                    // 備用方法
+                    const textArea = document.createElement('textarea');
+                    textArea.value = text;
+                    textArea.style.position = 'fixed';
+                    textArea.style.left = '-999999px';
+                    textArea.style.top = '-999999px';
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    
+                    const successful = document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    
+                    if (successful) {
+                        showNotification('文字已複製到剪貼簿！');
+                    } else {
+                        throw new Error('Copy command failed');
+                    }
+                }
+            } catch (err) {
+                log(`複製失敗: ${err.message}`);
+                showNotification('複製失敗，請手動選擇並複製', true);
+            }
+        }
+        
+        function showNotification(message, isError = false) {
+            notification.textContent = message;
+            notification.style.background = isError ? '#ff6b6b' : '#00b894';
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, isError ? 5000 : 3000);
+        }
+        
+        function resetUI() {
+            uploadArea.style.display = 'flex';
+            processingArea.style.display = 'none';
+            resultArea.style.display = 'none';
+            textOutput.textContent = '';
+            extractedText = '';
+            statusProgress.style.width = '0%';
+            fileInput.value = '';
+            log('界面已重設，準備處理新圖片');
+        }
+    </script>
+</body>
+</html>
