@@ -15,10 +15,8 @@
         body {
             background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             padding: 20px;
+            position: relative;
         }
         
         .container {
@@ -28,6 +26,7 @@
             border-radius: 16px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             overflow: hidden;
+            margin: 0 auto;
         }
         
         header {
@@ -189,6 +188,20 @@
             line-height: 1.6;
             color: #333;
             white-space: pre-wrap;
+            user-select: all; /* 讓文字更容易選擇 */
+            cursor: text;
+            transition: all 0.3s ease;
+        }
+        
+        .text-output:hover {
+            border-color: #4e54c8;
+            box-shadow: 0 0 0 2px rgba(78, 84, 200, 0.1);
+        }
+        
+        .text-output:focus {
+            outline: none;
+            border-color: #4e54c8;
+            box-shadow: 0 0 0 3px rgba(78, 84, 200, 0.2);
         }
         
         .action-buttons {
@@ -337,16 +350,16 @@
 <body>
     <div class="container">
         <header>
-            <h1>全自動圖片文字識別工具</h1>
-            <p class="description">支援拖放、貼上圖片或上傳檔案，自動識別並複製文字內容</p>
+            <h1>⚡ 超快速圖片文字識別工具</h1>
+            <p class="description">按 Ctrl+V 貼上截圖 → 自動識別 → 立即複製文字 ⚡</p>
         </header>
         
         <div class="main-content">
             <div class="upload-area" id="uploadArea">
-                <i>📋</i>
-                <h3>多種方式上傳圖片</h3>
-                <p>使用 Ctrl+V 貼上圖片</p>
-                <p>直接拖放圖片到此區域</p>
+                <i>⚡</i>
+                <h3>超快速圖片文字識別</h3>
+                <p><strong>🚀 最快方式：直接按 Ctrl+V 貼上截圖</strong></p>
+                <p>或拖放圖片到此區域</p>
                 <p>或點擊下方按鈕選擇檔案</p>
                 
                 <input type="file" class="file-input" id="fileInput" accept="image/*">
@@ -357,8 +370,8 @@
                     <div class="lang-btn" data-lang="chi_sim">中文</div>
                 </div>
                 
-                <p class="hint">支援格式: JPG, PNG, GIF, BMP</p>
-                <p class="hint">識別完成後文字將自動複製到剪貼簿</p>
+                <p class="hint">💡 提示：識別完成後文字會自動複製並選取，可直接編輯</p>
+                <p class="hint">支援格式: JPG, PNG, GIF, BMP | 建議使用清晰的印刷體圖片</p>
                 <div class="debug-info" id="debugInfo">系統準備中...</div>
             </div>
             
@@ -371,22 +384,26 @@
             </div>
             
             <div class="result-area" id="resultArea">
-                <h3 class="result-title">已識別並自動複製的文字內容</h3>
-                <div class="text-output" id="textOutput"></div>
+                <h3 class="result-title">✅ 識別成功！文字已自動複製</h3>
+                <div class="text-output" id="textOutput" contenteditable="true" spellcheck="false"></div>
                 <div class="action-buttons">
                     <button class="btn" id="copyBtn">
-                        <span>重新複製文字</span>
+                        <span>📋 重新複製文字</span>
                     </button>
                     <button class="btn btn-new" id="newImageBtn">
-                        <span>處理新圖片</span>
+                        <span>🔄 處理新圖片</span>
                     </button>
                 </div>
+                <p class="hint">💡 你可以直接在上方文字框中編輯文字，然後重新複製</p>
             </div>
         </div>
         
         <footer>
             <p>© 全自動圖片文字識別工具 | 使用 Tesseract.js 開源技術</p>
             <p style="font-size: 12px; color: #999; margin-top: 5px;">本工具基於免費開源技術，中文識別精準度可能不如商業付費服務</p>
+            <p style="font-size: 12px; color: #666; margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px;">
+                原始碼來源：<a href="https://github.com/Sid-1996/Auto-OCR-Web" target="_blank" rel="noopener" style="color:#1976d2;text-decoration:underline;">GitHub - Sid-1996/Auto-OCR-Web</a>
+            </p>
         </footer>
     </div>
 
@@ -435,30 +452,50 @@
             try {
                 log('正在初始化 Tesseract.js...');
                 
-                // 創建 worker
+                // 創建 worker，優化配置
                 worker = await Tesseract.createWorker({
                     logger: m => {
                         if (m.status) {
                             log(`狀態: ${m.status} - ${Math.round(m.progress * 100)}%`);
                             updateProgress(m);
                         }
-                    }
+                    },
+                    // 優化設定
+                    cachePath: './',
+                    gzip: true
                 });
                 
                 log('Worker 創建成功，正在載入語言包...');
                 
-                // 載入英文語言包（最基本且最穩定的）
-                await worker.loadLanguage('eng');
-                await worker.initialize('eng');
+                // 同時載入英文和中文語言包以提高速度
+                await worker.loadLanguage('eng+chi_sim');
+                await worker.initialize('eng+chi_sim');
+                
+                // 設定 OCR 參數以提高精度和速度
+                await worker.setParameters({
+                    tessedit_pageseg_mode: Tesseract.PSM.AUTO,
+                    tessedit_ocr_engine_mode: Tesseract.OEM.LSTM_ONLY,
+                    tessedit_char_blacklist: '|`~!@#$%^&*()_+-=[]{}\\;\':",./<>?', // 過濾常見誤識別字符
+                });
                 
                 log('初始化完成！系統準備就緒。');
                 isWorkerReady = true;
-                showNotification('系統初始化完成，可以開始使用！');
+                showNotification('🚀 系統已就緒，直接按 Ctrl+V 貼上圖片即可！');
                 
             } catch (error) {
                 log(`初始化失敗: ${error.message}`);
-                showNotification('初始化失敗，某些功能可能無法使用', true);
-                console.error('Initialization error:', error);
+                showNotification('初始化失敗，嘗試重新載入...', true);
+                
+                // 降級處理：只載入英文
+                try {
+                    await worker.loadLanguage('eng');
+                    await worker.initialize('eng');
+                    isWorkerReady = true;
+                    showNotification('系統準備完成（英文模式）');
+                } catch (fallbackError) {
+                    console.error('Initialization error:', fallbackError);
+                    showNotification('初始化失敗，請重新整理頁面', true);
+                }
             }
         }
         
@@ -504,8 +541,31 @@
             // 按鈕
             newImageBtn.addEventListener('click', resetUI);
             copyBtn.addEventListener('click', () => {
-                if (extractedText) {
-                    copyToClipboard(extractedText);
+                const currentText = textOutput.textContent || textOutput.innerText;
+                if (currentText) {
+                    copyToClipboard(currentText);
+                }
+            });
+            
+            // 文字輸出區域的即時複製功能
+            textOutput.addEventListener('input', () => {
+                window.extractedText = textOutput.textContent || textOutput.innerText;
+            });
+            
+            // 快速鍵支援
+            document.addEventListener('keydown', (e) => {
+                // Ctrl+Enter 快速複製
+                if (e.ctrlKey && e.key === 'Enter') {
+                    e.preventDefault();
+                    const currentText = textOutput.textContent || textOutput.innerText || window.extractedText;
+                    if (currentText) {
+                        copyToClipboard(currentText);
+                    }
+                }
+                // Escape 重設界面
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    resetUI();
                 }
             });
         }
@@ -546,7 +606,7 @@
                 log(`從剪貼簿取得檔案: ${file.name}, 類型: ${file.type}`);
                 if (file.type.startsWith('image/')) {
                     e.preventDefault();
-                    handleFile(file);
+                    handleFileWithPreprocessing(file);
                     return;
                 }
             }
@@ -560,7 +620,7 @@
                         const blob = item.getAsFile();
                         if (blob) {
                             e.preventDefault();
-                            handleFile(blob);
+                            handleFileWithPreprocessing(blob);
                             return;
                         }
                     }
@@ -568,7 +628,7 @@
             }
             
             log('剪貼簿中沒有找到圖片');
-            showNotification('請先複製圖片到剪貼簿', true);
+            showNotification('💡 請使用截圖工具複製圖片到剪貼簿，然後按 Ctrl+V', true);
         }
         
         async function handleLanguageChange(e) {
@@ -607,112 +667,165 @@
             }
             
             log(`開始處理檔案: ${file.name} (${(file.size/1024).toFixed(1)}KB)`);
-            
-            // 切換到處理界面
-            uploadArea.style.display = 'none';
-            processingArea.style.display = 'flex';
-            resultArea.style.display = 'none';
-            
-            processImage(file);
+            handleFileWithPreprocessing(file);
+        }
+        
+        // 新增圖片預處理功能
+        async function handleFileWithPreprocessing(file) {
+            try {
+                // 切換到處理界面
+                uploadArea.style.display = 'none';
+                processingArea.style.display = 'flex';
+                resultArea.style.display = 'none';
+                
+                progressText.textContent = '正在優化圖片...';
+                statusProgress.style.width = '10%';
+                
+                // 圖片預處理
+                const processedFile = await preprocessImage(file);
+                log('圖片預處理完成，開始識別...');
+                
+                processImage(processedFile);
+            } catch (error) {
+                log(`預處理失敗: ${error.message}`);
+                // 如果預處理失敗，使用原始圖片
+                processImage(file);
+            }
+        }
+        
+        // 圖片預處理函數 - 提高識別精度
+        function preprocessImage(file) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                img.onload = () => {
+                    // 計算最佳尺寸（確保不會太小影響識別）
+                    let { width, height } = img;
+                    const maxSize = 2000;
+                    const minSize = 800;
+                    
+                    if (width > maxSize || height > maxSize) {
+                        const ratio = Math.min(maxSize / width, maxSize / height);
+                        width = Math.round(width * ratio);
+                        height = Math.round(height * ratio);
+                    } else if (width < minSize && height < minSize) {
+                        const ratio = Math.max(minSize / width, minSize / height);
+                        width = Math.round(width * ratio);
+                        height = Math.round(height * ratio);
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    
+                    // 白色背景
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, width, height);
+                    
+                    // 增強對比度和清晰度
+                    ctx.filter = 'contrast(130%) brightness(105%) saturate(0%)';
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // 轉換為高質量 PNG
+                    canvas.toBlob(resolve, 'image/png', 1.0);
+                };
+                
+                img.onerror = () => resolve(file); // 如果處理失敗，返回原檔案
+                img.src = URL.createObjectURL(file);
+            });
         }
         
         async function processImage(file) {
             try {
-                statusProgress.style.width = '0%';
+                statusProgress.style.width = '20%';
                 
-                // 如果 worker 還沒準備好，先創建一個臨時的
-                if (!isWorkerReady || !worker) {
-                    log('Worker 還沒準備好，創建臨時 worker...');
-                    progressText.textContent = '正在準備識別引擎...';
-                    
-                    worker = await Tesseract.createWorker({
-                        logger: m => updateProgress(m)
-                    });
-                    
-                    // 載入對應語言包
-                    await worker.loadLanguage(selectedLanguage);
-                    await worker.initialize(selectedLanguage);
-                }
+                // 智能語言檢測和優化設定
+                const isLikelyChinese = selectedLanguage.includes('chi');
+                const ocrLanguage = isLikelyChinese ? 'eng+chi_sim' : 'eng';
                 
-                // 確保語言包已載入
-                if (selectedLanguage !== 'eng') {
-                    log(`確認語言包載入狀態: ${selectedLanguage}`);
-                    progressText.textContent = `確認 ${selectedLanguage} 語言包...`;
-                    
-                    try {
-                        // 重新初始化以確保語言包正確載入
-                        await worker.reinitialize(selectedLanguage);
-                        log(`語言包 ${selectedLanguage} 確認完成`);
-                    } catch (langError) {
-                        log(`語言包問題，嘗試重新載入: ${langError.message}`);
-                        await worker.loadLanguage(selectedLanguage);
-                        await worker.initialize(selectedLanguage);
-                    }
-                }
-                
-                log(`開始識別文字，使用語言: ${selectedLanguage}`);
+                log(`開始識別文字，使用語言: ${ocrLanguage}`);
                 progressText.textContent = '正在識別圖片中的文字...';
                 
-                // 針對中文進行特殊處理
-                const ocrOptions = {};
-                if (selectedLanguage.includes('chi')) {
-                    // 中文識別的特殊設定
-                    ocrOptions.tessedit_char_whitelist = '';
-                    ocrOptions.tessedit_pageseg_mode = 1; // 自動頁面分割
-                    log('使用中文識別優化設定');
+                // 優化的 OCR 設定
+                const ocrOptions = {
+                    tessedit_pageseg_mode: Tesseract.PSM.AUTO,
+                    tessedit_ocr_engine_mode: Tesseract.OEM.LSTM_ONLY,
+                };
+                
+                // 針對中文的特殊優化
+                if (isLikelyChinese) {
+                    ocrOptions.tessedit_pageseg_mode = Tesseract.PSM.SINGLE_BLOCK;
+                    log('使用中文優化設定');
                 }
                 
                 // 進行 OCR 識別
-                const result = await worker.recognize(file, selectedLanguage, ocrOptions);
+                const result = await worker.recognize(file, ocrLanguage, ocrOptions);
                 
                 log(`識別完成，信心度: ${result.data.confidence.toFixed(2)}%`);
                 
-                extractedText = result.data.text ? result.data.text.trim() : '';
+                // 文字後處理和清理
+                let extractedText = result.data.text ? result.data.text.trim() : '';
+                extractedText = cleanupText(extractedText);
                 
-                if (extractedText) {
+                if (extractedText && extractedText.length > 3) {
                     log(`成功識別到 ${extractedText.length} 個字元`);
+                    window.extractedText = extractedText;
+                    textOutput.textContent = extractedText;
+                    
+                    // 立即複製到剪貼簿
+                    await copyToClipboard(extractedText);
+                    
+                    // 顯示結果
+                    processingArea.style.display = 'none';
+                    resultArea.style.display = 'flex';
+                    
+                    // 自動聚焦到文字區域以便快速編輯
+                    setTimeout(() => {
+                        textOutput.focus();
+                        if (window.getSelection) {
+                            const range = document.createRange();
+                            range.selectNodeContents(textOutput);
+                            const sel = window.getSelection();
+                            sel.removeAllRanges();
+                            sel.addRange(range);
+                        }
+                    }, 100);
+                    
                 } else {
-                    let errorMsg = '無法從圖片中識別到文字內容。\n\n可能的原因：\n• 圖片中沒有文字\n• 文字太小或模糊';
-                    
-                    if (selectedLanguage.includes('chi')) {
-                        errorMsg += '\n• 中文字體複雜或手寫字難以識別\n• 圖片解析度不足\n• Tesseract.js 對中文識別精準度有限\n\n建議：\n• 使用高解析度印刷體圖片\n• 確保圖片清晰且對比度高\n• 避免傾斜或變形的文字\n• 考慮使用商業 OCR 服務以獲得更高精準度';
-                    } else {
-                        errorMsg += '\n• 語言設定不正確\n\n建議：\n• 使用更清晰的圖片\n• 嘗試不同的語言設定\n• 確保圖片對比度足夠';
-                    }
-                    
-                    extractedText = errorMsg;
-                    log('未識別到文字內容');
+                    throw new Error('無法識別到有效文字內容');
                 }
-                
-                textOutput.textContent = extractedText;
-                
-                // 複製到剪貼簿
-                await copyToClipboard(extractedText);
-                
-                // 顯示結果
-                processingArea.style.display = 'none';
-                resultArea.style.display = 'flex';
                 
             } catch (error) {
                 log(`處理失敗: ${error.message}`);
                 console.error('OCR error:', error);
                 
-                let errorMsg = `處理失敗：${error.message}\n\n`;
+                const errorMsg = `識別失敗 😞\n\n💡 提示：\n• 確保圖片清晰且文字對比度高\n• 嘗試截圖或重新拍照\n• 避免傾斜或模糊的文字\n• 使用印刷體效果更佳\n\n錯誤詳情：${error.message}`;
                 
-                if (selectedLanguage.includes('chi')) {
-                    errorMsg += '中文識別常見問題：\n• Tesseract.js 對中文識別精準度有技術限制\n• 語言包載入失敗\n• 網路連線問題\n• 圖片格式不支援\n\n請嘗試：\n• 使用更清晰的高解析度印刷體圖片\n• 重新選擇中文語言\n• 確保網路連線穩定\n• 重新整理頁面\n• 如需高精準度，建議使用商業 OCR 服務';
-                } else {
-                    errorMsg += '請嘗試：\n• 重新整理頁面\n• 使用其他圖片\n• 檢查網路連線';
-                }
-                
-                extractedText = errorMsg;
-                textOutput.textContent = extractedText;
+                window.extractedText = errorMsg;
+                textOutput.textContent = errorMsg;
                 
                 processingArea.style.display = 'none';
                 resultArea.style.display = 'flex';
                 
-                showNotification('處理失敗，請重試', true);
+                showNotification('識別失敗，請嘗試更清晰的圖片', true);
             }
+        }
+        
+        // 文字清理和優化函數
+        function cleanupText(text) {
+            if (!text) return '';
+            
+            return text
+                // 移除多餘的空白字符
+                .replace(/\s+/g, ' ')
+                // 移除行首行尾空格
+                .replace(/^\s+|\s+$/gm, '')
+                // 移除多餘的換行
+                .replace(/\n\s*\n/g, '\n')
+                // 移除常見的 OCR 錯誤字符
+                .replace(/[|`~]/g, '')
+                .trim();
         }
         
         function updateProgress(message) {
@@ -738,7 +851,7 @@
             try {
                 if (navigator.clipboard && window.isSecureContext) {
                     await navigator.clipboard.writeText(text);
-                    showNotification('文字已複製到剪貼簿！');
+                    showNotification('📋 文字已複製到剪貼簿！');
                 } else {
                     // 備用方法
                     const textArea = document.createElement('textarea');
@@ -754,14 +867,23 @@
                     document.body.removeChild(textArea);
                     
                     if (successful) {
-                        showNotification('文字已複製到剪貼簿！');
+                        showNotification('📋 文字已複製到剪貼簿！');
                     } else {
                         throw new Error('Copy command failed');
                     }
                 }
             } catch (err) {
                 log(`複製失敗: ${err.message}`);
-                showNotification('複製失敗，請手動選擇並複製', true);
+                showNotification('複製失敗，請手動選擇並複製 (Ctrl+A, Ctrl+C)', true);
+                
+                // 自動選擇文字作為備用方案
+                if (textOutput && window.getSelection) {
+                    const range = document.createRange();
+                    range.selectNodeContents(textOutput);
+                    const sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                }
             }
         }
         
